@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP Door Access Control</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+
+    <!-- LOGIN SCREEN CONTAINER -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-6">
+            <div class="text-center space-y-2">
+                <div class="w-16 h-16 bg-blue-600/20 text-blue-500 rounded-2xl flex items-center justify-center mx-auto border border-blue-500/30">
+                    <i class="fa-solid fa-shield-halved text-3xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-white tracking-wide">Security Portal</h1>
+                <p class="text-slate-400 text-sm">Enter your credentials to access OTP Door Control</p>
+            </div>
+
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Username</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                            <i class="fa-solid fa-user"></i>
+                        </span>
+                        <input type="text" id="login-username" required placeholder="admin"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500 transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Password</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                            <i class="fa-solid fa-lock"></i>
+                        </span>
+                        <input type="password" id="login-password" required placeholder="••••••••"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500 transition">
+                    </div>
+                </div>
+
+                <div id="login-error" class="hidden text-red-400 text-xs bg-red-500/10 border border-red-500/20 p-3 rounded-lg text-center">
+                    Invalid username or password. (Default: admin / password123)
+                </div>
+
+                <button type="submit"
+                    class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-blue-600/20 active:scale-[0.98]">
+                    Sign In <i class="fa-solid fa-arrow-right-to-bracket ml-2"></i>
+                </button>
+            </form>
+
+            <div class="text-center text-xs text-slate-500 border-t border-slate-700/50 pt-4">
+                Default Credentials: <span class="text-slate-400 font-mono">admin</span> / <span class="text-slate-400 font-mono">password123</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD CONTAINER (HIDDEN UNTIL LOGIN) -->
+    <div id="dashboard-screen" class="hidden min-h-screen flex-col">
+        <!-- Header / Navbar -->
+        <header class="bg-slate-800 border-b border-slate-700 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-blue-600/20 text-blue-500 rounded-xl flex items-center justify-center border border-blue-500/30">
+                    <i class="fa-solid fa-key text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-white leading-tight">Door Access Portal</h1>
+                    <p class="text-xs text-slate-400">ESP32 OTP System</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-3">
+                <!-- Hardware Status Badge -->
+                <div class="flex items-center bg-slate-900 border border-slate-700 rounded-full px-3 py-1 text-xs">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse mr-2"></span>
+                    <span class="text-slate-300 font-medium hidden sm:inline">ESP32 Online</span>
+                </div>
+                <!-- Logout Button -->
+                <button onclick="handleLogout()" class="text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-700 p-2 rounded-xl transition">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Content Body -->
+        <main class="flex-1 p-4 max-w-xl mx-auto w-full space-y-4">
+
+            <!-- Door Status Card -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Door Lock Status</span>
+                    <span id="servo-badge" class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs px-2.5 py-1 rounded-full font-semibold">
+                        <i class="fa-solid fa-lock mr-1"></i> Locked
+                    </span>
+                </div>
+
+                <div class="flex items-center justify-between bg-slate-900 border border-slate-700/60 p-4 rounded-xl">
+                    <div class="flex items-center space-x-3">
+                        <div id="servo-icon-bg" class="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-xl flex items-center justify-center">
+                            <i id="servo-icon" class="fa-solid fa-lock text-2xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-400">Servo Motor Angle</p>
+                            <p id="servo-angle" class="text-lg font-bold text-slate-100">0° (LOCKED)</p>
+                        </div>
+                    </div>
+                    <!-- Manual Override Toggle -->
+                    <button id="toggle-door-btn" onclick="toggleDoor()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-semibold transition active:scale-95 shadow-md shadow-blue-600/20">
+                        Unlock
+                    </button>
+                </div>
+            </div>
+
+            <!-- Generate OTP Card -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Active One-Time Password</span>
+                    <span class="text-xs text-slate-400"><i class="fa-solid fa-clock mr-1"></i> Expires in 5m</span>
+                </div>
+
+                <!-- OTP Display Box -->
+                <div class="bg-slate-900 border border-slate-700/80 p-5 rounded-xl text-center space-y-2 relative overflow-hidden">
+                    <div id="otp-display" class="text-4xl font-extrabold tracking-widest text-blue-400 font-mono">
+                        ------
+                    </div>
+                    <p id="otp-timer" class="text-xs text-slate-500">No active OTP generated</p>
+
+                    <!-- Progress bar for OTP timeout -->
+                    <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-800">
+                        <div id="otp-progress" class="h-full bg-blue-500 w-0 transition-all duration-1000"></div>
+                    </div>
+                </div>
+
+                <button onclick="generateOTP()" class="w-full bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-100 font-semibold py-3 rounded-xl transition flex items-center justify-center space-x-2 active:scale-[0.98]">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                    <span>Generate New OTP</span>
+                </button>
+            </div>
+
+            <!-- Access Logs -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Activity History Log</span>
+                    <button onclick="clearLogs()" class="text-xs text-slate-500 hover:text-slate-400">Clear</button>
+                </div>
+
+                <div id="logs-container" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    <!-- Logs populated via JS -->
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // State Management
+        let isLocked = true;
+        let activeOTP = null;
+        let otpTimerInterval = null;
+        const OTP_DURATION = 300; // 5 minutes in seconds
+        let secondsRemaining = 0;
+
+        // Login Handler
+        function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            const errorDiv = document.getElementById('login-error');
+
+            if (username === 'admin' && password === 'password123') {
+                errorDiv.classList.add('hidden');
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('dashboard-screen').classList.remove('hidden');
+                document.getElementById('dashboard-screen').classList.add('flex');
+                addLog('User logged in', 'success');
+            } else {
+                errorDiv.classList.remove('hidden');
+            }
+        }
+
+        // Logout Handler
+        function handleLogout() {
+            document.getElementById('dashboard-screen').classList.add('hidden');
+            document.getElementById('dashboard-screen').classList.remove('flex');
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('login-password').value = '';
+        }
+
+        // Manual Door Toggle
+        function toggleDoor() {
+            isLocked = !isLocked;
+            updateDoorUI();
+            addLog(isLocked ? 'Door manually Locked' : 'Door manually Unlocked', isLocked ? 'warning' : 'success');
+        }
+
+        function updateDoorUI() {
+            const badge = document.getElementById('servo-badge');
+            const angleText = document.getElementById('servo-angle');
+            const iconBg = document.getElementById('servo-icon-bg');
+            const icon = document.getElementById('servo-icon');
+            const btn = document.getElementById('toggle-door-btn');
+
+            if (isLocked) {
+                badge.className = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs px-2.5 py-1 rounded-full font-semibold";
+                badge.innerHTML = `<i class="fa-solid fa-lock mr-1"></i> Locked`;
+                angleText.innerText = "0° (LOCKED)";
+                iconBg.className = "w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-xl flex items-center justify-center";
+                icon.className = "fa-solid fa-lock text-2xl";
+                btn.innerText = "Unlock";
+            } else {
+                badge.className = "bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs px-2.5 py-1 rounded-full font-semibold";
+                badge.innerHTML = `<i class="fa-solid fa-lock-open mr-1"></i> Unlocked`;
+                angleText.innerText = "90° (UNLOCKED)";
+                iconBg.className = "w-12 h-12 bg-amber-500/10 text-amber-500 rounded-xl flex items-center justify-center";
+                icon.className = "fa-solid fa-lock-open text-2xl";
+                btn.innerText = "Lock";
+            }
+        }
+
+        // OTP Generation
+        function generateOTP() {
+            activeOTP = Math.floor(100000 + Math.random() * 900000).toString();
+            document.getElementById('otp-display').innerText = activeOTP;
+            secondsRemaining = OTP_DURATION;
+            
+            clearInterval(otpTimerInterval);
+            updateTimerDisplay();
+
+            otpTimerInterval = setInterval(() => {
+                secondsRemaining--;
+                updateTimerDisplay();
+                if (secondsRemaining <= 0) {
+                    clearInterval(otpTimerInterval);
+                    activeOTP = null;
+                    document.getElementById('otp-display').innerText = "------";
+                    document.getElementById('otp-timer').innerText = "OTP expired. Generate a new one.";
+                    document.getElementById('otp-progress').style.width = "0%";
+                    addLog('OTP Expired', 'warning');
+                }
+            }, 1000);
+
+            addLog(`Generated OTP: ${activeOTP}`, 'info');
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(secondsRemaining / 60);
+            const secs = secondsRemaining % 60;
+            const formattedSecs = secs < 10 ? '0' + secs : secs;
+            document.getElementById('otp-timer').innerText = `Expires in ${mins}:${formattedSecs}`;
+            
+            const pct = (secondsRemaining / OTP_DURATION) * 100;
+            document.getElementById('otp-progress').style.width = `${pct}%`;
+        }
+
+        // Logging System
+        function addLog(message, type = 'info') {
+            const container = document.getElementById('logs-container');
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            let typeColors = {
+                info: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+                success: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+                warning: 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+            };
+
+            const item = document.createElement('div');
+            item.className = `p-2.5 rounded-lg border text-xs flex justify-between items-center ${typeColors[type] || typeColors.info}`;
+            item.innerHTML = `
+                <span>${message}</span>
+                <span class="text-[10px] opacity-70">${timeStr}</span>
+            `;
+
+            container.prepend(item);
+        }
+
+        function clearLogs() {
+            document.getElementById('logs-container').innerHTML = '';
+        }
+
+        // Initial setup
+        addLog('System initialized', 'info');
+    </script>
+</body>
+</html>
